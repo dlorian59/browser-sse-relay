@@ -4,6 +4,8 @@
 
 [English](guide.en.md) · [Русский](guide.ru.md) · [Version index](../index.md) · [Repository README](../../README.md)
 
+[Complete API and defaults](reference.en.md)
+
 ## Overview
 
 Use this package when a reconnect must resume from application processing, rather than from the most recently received transport event. The server must implement [protocol v1](../PROTOCOL.md), retain history, and provide an application snapshot path when recovery is no longer possible.
@@ -73,6 +75,7 @@ const options = {
       throw new Error('Invalid counter payload');
     }
     counter = payload.value; // Repeating this assignment is idempotent.
+    // Повторное присваивание этого значения идемпотентно.
   },
 } satisfies import('@59alex/browser-sse-relay').RelayOptions;
 
@@ -127,9 +130,11 @@ Continue with the active client from the first example:
 ```ts
 client.stop();
 const stopped = await client.start(); // Returns the same session promise.
+// Возвращает promise той же сессии.
 console.log(stopped.state, stopped.reason, stopped.cursor);
 
 await client.logout(); // Await in-flight work, then clear this scope's checkpoint.
+// Дождаться текущей работы и очистить checkpoint этого scope.
 ```
 
 stop() aborts transport and pending retries and prevents the next handler from starting. It cannot undo an effect already performed by an in-flight handler. Such handlers receive an aborted signal and can inspect context.isCurrent() before applying their own delayed effects.
@@ -154,6 +159,7 @@ if (result.state === 'resync') {
     throw new Error('Invalid snapshot');
   }
   counter = snapshot.value; // Apply application state BEFORE committing its cursor.
+  // Установить состояние приложения ДО подтверждения его курсора.
   client = new SseRelayClient({ ...options, initialCursor: snapshot.cursor });
   void client.start();
 }

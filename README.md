@@ -3,7 +3,7 @@
 <details name="readme-language">
 <summary><picture><source media="(prefers-color-scheme: dark)" srcset="assets/lang-en-dark.svg"><img src="assets/lang-en-light.svg" width="42" height="26" alt="EN"></picture></summary>
 
-Version: [0.1.0 guide](docs/v0.1.0/guide.en.md) · [All documentation](docs/index.md)
+Version: [0.1.0 guide](docs/v0.1.0/guide.en.md) · [API 0.1.0](docs/v0.1.0/reference.en.md) · [All documentation](docs/index.md)
 
 Recover an SSE stream from the last event your application successfully handled and checkpointed. Includes an independent TypeScript browser client and a Node reference relay with bounded retained history.
 
@@ -58,11 +58,12 @@ const client = new SseRelayClient({
 });
 void client.start().then(result => console.log(result.state, result.reason));
 // On application teardown: client.stop();
+// При завершении приложения: client.stop();
 ```
 
 The endpoint must implement protocol v1, and scope must match the authenticated account. Effects may repeat if checkpointing fails; make real handlers idempotent. A persisted cursor requires corresponding application state or snapshot recovery.
 
-See [the English guide](docs/v0.1.0/guide.en.md), [русское руководство](docs/v0.1.0/guide.ru.md), [protocol](docs/PROTOCOL.md), and [verification record](docs/VERIFICATION.md).
+See [the English guide](docs/v0.1.0/guide.en.md), [русское руководство](docs/v0.1.0/guide.ru.md) · [API 0.1.0](docs/v0.1.0/reference.ru.md), [protocol](docs/PROTOCOL.md), and [verification record](docs/VERIFICATION.md).
 
 ## Language and runtime
 
@@ -132,6 +133,7 @@ const client = new SseRelayClient({
 });
 void client.start().then(result => console.log(result.state, result.reason));
 // On application teardown: client.stop();
+// При завершении приложения: client.stop();
 ```
 
 Endpoint должен реализовать протокол v1, а scope — соответствовать авторизованному аккаунту. При ошибке checkpoint эффект может повториться; реальные обработчики должны быть идемпотентными. Для сохранённого курсора нужно соответствующее состояние приложения или восстановление snapshot.

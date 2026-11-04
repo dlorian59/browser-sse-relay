@@ -88,6 +88,7 @@ const actions = {
 for (const [id, action] of Object.entries(actions)) {
   element(id).addEventListener('click', async () => {
     // Do not start overlapping owners of one checkpoint while an earlier UI action awaits I/O.
+    // Пока предыдущее действие ожидает I/O, не запускаем второго владельца того же checkpoint.
     for (const name of Object.keys(actions)) element(name).disabled = true;
     try { await action(); }
     catch (error) { log(`ERROR ${error.message}`); }

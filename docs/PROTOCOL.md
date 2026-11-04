@@ -2,6 +2,8 @@
 
 [← Back to documentation and versions / Назад к документации и версиям](index.md)
 
+[Русская версия](PROTOCOL.ru.md) · [API reference](v0.1.0/reference.en.md)
+
 ## Scope and ordering
 
 A stream is identified by the pair `{ accountId, streamId }`. Cursors are opaque, nonempty printable-ASCII strings (1..1024 characters, no spaces) and valid only for that pair. The server authenticates the account; a request cannot select another account by a query parameter. The client verifies the server's scope before invoking application handlers. A cursor is not an authorization credential.

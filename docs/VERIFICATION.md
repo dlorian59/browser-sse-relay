@@ -59,3 +59,9 @@ ES2022 ESM output requires streaming fetch, ReadableStream, TextDecoder, Headers
 Registry authentication, ownership of the npm name, actual npm publication and production application integration remain open. A production durable history adapter, cross-tab single-writer coordination and a broader browser matrix are separate work. See [ROADMAP](../ROADMAP.md).
 
 [← Back to documentation and versions / Назад к документации и версиям](index.md)
+
+## API documentation audit · 2026-11-05
+
+Checked browser/server exports against src/index.ts, src/client.ts, src/checkpoint.ts, src/server/index.ts, history.ts and http.ts. Added complete versioned EN/RU references with option defaults, timer ranges, failure mappings, checkpoint ownership, auth hooks and server capacity semantics, plus the Russian protocol. Guide/README examples still pass the clean installed-package consumer; no runtime source changed in this audit. Checked 112 relative Markdown file/anchor links. New source links target actual repository paths; public GitHub availability is not asserted.
+
+Проверены browser/server exports по исходникам. Добавлены полные EN/RU справочники с defaults, диапазонами таймеров, ошибками, checkpoint ownership, auth hooks и capacity сервера, а также русский протокол. Примеры guide/README проходят проверку установленного архива; runtime-код этим аудитом не изменён. Проверены 112 относительных ссылок и anchors. Source links указывают на реальные пути репозитория; доступность публичного GitHub не заявляется.

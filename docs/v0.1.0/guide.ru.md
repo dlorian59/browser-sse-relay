@@ -4,6 +4,8 @@
 
 [English](guide.en.md) · [Русский](guide.ru.md) · [Выбор версии](../index.md) · [README репозитория](../../README.md)
 
+[Полный API и значения по умолчанию](reference.ru.md)
+
 ## Назначение
 
 Библиотека нужна, когда после обрыва следует продолжить с последнего обработанного приложением события, а не с последнего полученного транспортом кадра. Сервер должен соблюдать [протокол v1](../PROTOCOL.md), хранить историю и предоставлять согласованный snapshot, если обычное восстановление уже невозможно.
@@ -73,6 +75,7 @@ const options = {
       throw new Error('Invalid counter payload');
     }
     counter = payload.value; // Repeating this assignment is idempotent.
+    // Повторное присваивание этого значения идемпотентно.
   },
 } satisfies import('@59alex/browser-sse-relay').RelayOptions;
 
@@ -127,9 +130,11 @@ client = new SseRelayClient({ ...options, ...authentication });
 ```ts
 client.stop();
 const stopped = await client.start(); // Returns the same session promise.
+// Возвращает promise той же сессии.
 console.log(stopped.state, stopped.reason, stopped.cursor);
 
 await client.logout(); // Await in-flight work, then clear this scope's checkpoint.
+// Дождаться текущей работы и очистить checkpoint этого scope.
 ```
 
 stop() прерывает транспорт и отложенные повторы, запрещая запуск следующего обработчика. Уже выполненный эффект текущего обработчика отменить невозможно. Такой обработчик получает отменённый signal и может проверить context.isCurrent() перед применением своего отложенного эффекта.
@@ -154,6 +159,7 @@ if (result.state === 'resync') {
     throw new Error('Invalid snapshot');
   }
   counter = snapshot.value; // Apply application state BEFORE committing its cursor.
+  // Установить состояние приложения ДО подтверждения его курсора.
   client = new SseRelayClient({ ...options, initialCursor: snapshot.cursor });
   void client.start();
 }
