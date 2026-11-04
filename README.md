@@ -43,6 +43,8 @@ npm run test:package
 npm install /path/to/59alex-browser-sse-relay-0.1.0.tgz
 ```
 
+A practical dashboard walkthrough and the optional React integration are described in the [English guide](docs/v0.1.0/guide.en.md#practical-scenario-a-dashboard-that-survives-disconnects). The React adapter is a local source candidate; its public repository and release are pending.
+
 ## Minimal client
 
 ```ts
@@ -114,6 +116,8 @@ npm run test:package
 # Создаёт output/59alex-browser-sse-relay-0.1.0.tgz и проверяет чистый consumer.
 npm install /path/to/59alex-browser-sse-relay-0.1.0.tgz
 ```
+
+Практический сценарий панели и отдельная React-интеграция описаны в [русском руководстве](docs/v0.1.0/guide.ru.md#практический-сценарий-панель-переживает-обрыв-соединения). React-адаптер подготовлен локально; публичный репозиторий и релиз ещё не созданы.
 
 ## Минимальный клиент
 

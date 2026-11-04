@@ -9,7 +9,8 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 const scope = Object.freeze({ accountId: 'demo-account', streamId: 'counter' });
 const token = 'demo-only-token';
 
-/** Two real HTTP listeners, one shared in-process retained store, and a separate demo/control listener. */
+// Two real HTTP listeners share one in-process retained store; a third listener serves demo controls.
+// Два HTTP relay используют общий журнал в одном процессе; третий listener обслуживает управление демо.
 export async function startDemo({ port = 0 } = {}) {
   const store = new MemoryEventStore({ maxEventsPerStream: 8, retentionMs: 300000 });
   let counter = 0;
@@ -44,6 +45,7 @@ export async function startDemo({ port = 0 } = {}) {
       if (url.pathname === '/api/config') { json(response, { scope, token, relayUrls }); return; }
       if (url.pathname === '/api/snapshot') {
         // Application state and log cursor are read synchronously with no await between them.
+        // Состояние приложения и курсор читаются синхронно, без await между ними.
         json(response, { value: counter, cursor: store.currentCursor(scope), scope }); return;
       }
       if (url.pathname === '/api/stats') { json(response, { counter, attempts, store: store.stats() }); return; }
@@ -56,6 +58,7 @@ export async function startDemo({ port = 0 } = {}) {
         const count = Number(url.searchParams.get('count') ?? 1);
         if (!Number.isInteger(count) || count < 1 || count > 64) { json(response, { error: 'count must be 1..64' }, 400); return; }
         // Commit the event and application state in one synchronous section in this reference demo.
+        // В reference-демо событие и состояние приложения изменяются в одном синхронном участке.
         for (let i = 0; i < count; i++) {
           const value = counter + 1;
           store.append(scope, JSON.stringify({ value }), 'counter');

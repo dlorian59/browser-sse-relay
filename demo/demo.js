@@ -22,6 +22,7 @@ const checkpoint = {
 async function stop() { if (session) { session.stop(); await session.start(); } }
 async function start(initialCursor) {
   // A persisted cursor alone cannot restore this page's in-memory counter after reload.
+  // Сохранённого курсора недостаточно для восстановления счётчика в памяти после перезагрузки.
   if (!session && initialCursor === undefined && await storage.load(config.scope, new AbortController().signal) !== undefined) {
     await snapshotAndResume(); return;
   }
@@ -40,6 +41,8 @@ async function start(initialCursor) {
     retry: { maxAttempts: 8, minDelayMs: 300, maxDelayMs: 1500, jitter: 0.1 },
     onState(state) { if (current === generation) { element('state').textContent = state; log(`STATE ${state}`); render(); } },
     async onEvent(event, context) {
+      // Ignore late effects from an obsolete account/session before updating the view.
+      // До обновления представления отклоняем поздние эффекты устаревшего аккаунта или сессии.
       if (!context.isCurrent() || current !== generation) return;
       const payload = JSON.parse(event.data);
       if (seen.has(event.id)) duplicates++;
@@ -64,11 +67,14 @@ async function snapshotAndResume() {
   await stop();
   const snapshot = await fetch('/api/snapshot').then(response => response.json());
   // State is installed before the matching cursor is provided to a fresh session.
+  // Сначала устанавливаем состояние, затем передаём его курсор новой сессии.
   value = snapshot.value; seen.clear(); log(`SNAPSHOT value=${value} cursor=${snapshot.cursor}`); render();
   await start(snapshot.cursor);
 }
 async function expireHistory() { await stop(); await publish(20); await start(); }
 async function logout() {
+  // Await processing and checkpoint removal before discarding account state.
+  // До очистки состояния аккаунта ждём обработки и удаления checkpoint.
   if (session) await session.logout();
   generation++; value = 0; handled = 0; duplicates = 0; seen.clear();
   element('state').textContent = 'closed'; render(); log('LOGOUT cursor cleared; no automatic restart');
