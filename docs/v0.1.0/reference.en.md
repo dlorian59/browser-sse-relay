@@ -5,6 +5,11 @@
 This reference covers the public exports of the browser entry and /server entry. Parser, queue and wire-encoding helpers are implementation details, not package exports. ESM only; browser entry has no Node dependency. [Client source](https://github.com/dlorian59/browser-sse-relay/blob/main/src/client.ts), [checkpoint source](https://github.com/dlorian59/browser-sse-relay/blob/main/src/checkpoint.ts), [server source](https://github.com/dlorian59/browser-sse-relay/blob/main/src/server/index.ts).
 
 
+
+## JSON convenience API
+
+`createJsonRelay<T>(options)` returns the same one-shot `SseRelayClient`; it supplies a private memory checkpoint and `RelayProfiles.NOTIFICATIONS` defaults. All `RelayOptions` except `onEvent` are accepted, plus `decode(unknown):T` and awaited `onData(value,context,event)`. JSON/decoder/handler errors remain uncommitted and use normal bounded retries. `jsonEventHandler({decode,onData})` exposes that processing adapter for an existing client/provider. `RelayProfiles.NOTIFICATIONS` and `LIVE_FEED` are frozen presets; [values and selection](../integration.en.md#profiles). `validateCursor(value)` validates the existing opaque cursor contract and returns the cursor or throws; it is useful before installing a snapshot. [Full order source](../../examples/orders.ts).
+
 ## DPoP transport
 
 [Setup, full API, failure handling and server requirements](../dpop.en.md) · [Typed integration](../../examples/dpop-session.ts) · [Implementation](https://github.com/dlorian59/browser-sse-relay/blob/main/src/dpop.ts).

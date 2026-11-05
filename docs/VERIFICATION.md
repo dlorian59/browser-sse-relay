@@ -4,6 +4,11 @@
 
 [Documentation index](index.md) · [English guide](v0.1.0/guide.en.md) · [Русское руководство](v0.1.0/guide.ru.md)
 
+## Integration API update — 2026-11-05
+
+`createJsonRelay`/`jsonEventHandler` and named profiles reuse the existing engine. 57 Node tests passed, including a new boundary check: valid business processing is awaited before saving, and invalid business JSON leaves the previous cursor unchanged. Clean packed consumer compiled both README languages and existing guide examples; the README is the complete `examples/orders.ts` module. Existing DPoP and protocol tests remain green. No registry release or production backend deployment was performed.
+
+
 ## DPoP update — 2026-11-05
 
 - `npm test`: 56 passing tests, including real ES256 signature checks, token/key/URL/method binding, replay rejection, bounded nonce retries, origin restrictions, cancellation and an HTTP redirect that never reaches its target.

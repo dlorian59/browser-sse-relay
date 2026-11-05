@@ -2,6 +2,12 @@
 
 [← Back to repository README / Назад к README библиотеки](README.md)
 
+## Integration API update — 2026-11-05
+
+- Add `createJsonRelay`, `jsonEventHandler` and named `RelayProfiles`, preserving processing/checkpoint ordering and bounded retries.
+- Export the existing `validateCursor` for validating application snapshots before applying state.
+- Make the bilingual README an existing-project integration entry; move development commands to CONTRIBUTING and add an order-notification walkthrough and complete module.
+
 ## Source update — 2026-11-05
 
 - Add optional RFC 9449 DPoP proof helpers and a GET-only fetch adapter: non-extractable P-256 keys, per-request proof, trusted-origin checks, one nonce challenge retry and cancellation.

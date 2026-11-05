@@ -12,6 +12,7 @@ Choose a library version and language. These guides are Markdown files in this r
 |---|---|---|---|
 | 0.1.0 | [Capabilities, examples, contracts](v0.1.0/guide.en.md) | [Возможности, примеры, контракты](v0.1.0/guide.ru.md) | TypeScript 5.9.3 → ES2022 ESM; Node 22.12+ reference server |
 
+- [Start with your existing application · EN](integration.en.md) / [Подключение к существующему приложению · RU](integration.ru.md)
 - [DPoP: setup, API and server checks · EN](dpop.en.md) / [DPoP: настройка, API и серверные проверки · RU](dpop.ru.md)
 - [Protocol v1 · EN](PROTOCOL.md) / [Протокол v1 · RU](PROTOCOL.ru.md)
 - [Parser decision / Выбор парсера](PARSER-DECISION.md)

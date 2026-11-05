@@ -5,6 +5,11 @@
 Здесь перечислены публичные exports браузерного entry и /server. Parser, queue и функции кодирования кадров — внутренние детали, не exports пакета. Только ESM; browser entry не зависит от Node. Исходники: [клиент](https://github.com/dlorian59/browser-sse-relay/blob/main/src/client.ts), [checkpoint](https://github.com/dlorian59/browser-sse-relay/blob/main/src/checkpoint.ts), [server entry](https://github.com/dlorian59/browser-sse-relay/blob/main/src/server/index.ts).
 
 
+
+## Удобный API для JSON
+
+`createJsonRelay<T>(options)` возвращает обычный одноразовый `SseRelayClient`; задаёт личный checkpoint в памяти и профиль `RelayProfiles.NOTIFICATIONS`. Принимает все `RelayOptions`, кроме `onEvent`, а также `decode(unknown):T` и ожидаемый `onData(value,context,event)`. Ошибки JSON/decoder/обработчика не подтверждаются и используют обычный конечный бюджет повторов. `jsonEventHandler({decode,onData})` предоставляет тот же адаптер существующему клиенту/provider. `RelayProfiles.NOTIFICATIONS` и `LIVE_FEED` заморожены; [значения и выбор](../integration.ru.md#profiles). `validateCursor(value)` проверяет действующий контракт непрозрачного курсора, возвращая его или исключение; полезен до применения снимка. [Полный код заказов](../../examples/orders.ts).
+
 ## Транспорт DPoP
 
 [Настройка, полный API, ошибки и требования к серверу](../dpop.ru.md) · [Типизированная интеграция](../../examples/dpop-session.ts) · [Реализация](https://github.com/dlorian59/browser-sse-relay/blob/main/src/dpop.ts).

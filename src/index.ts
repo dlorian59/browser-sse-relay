@@ -6,3 +6,6 @@ export type { StreamScope, RelayEvent } from './protocol.js';
 export { ProtocolError, ResyncError } from './protocol.js';
 export { createDpopKeyPair, getDpopThumbprint, createDpopProof, createDpopFetch } from './dpop.js';
 export type { DpopProofOptions, DpopFetchOptions } from './dpop.js';
+export { RelayProfiles, jsonEventHandler, createJsonRelay } from './json.js';
+export type { JsonEventHandlerOptions, JsonRelayOptions } from './json.js';
+export { validateCursor } from './protocol.js';

@@ -6,6 +6,8 @@
 
 [Complete API and defaults](reference.en.md)
 
+[First integration: purpose, project structure and a working module](../integration.en.md).
+
 ## Overview
 
 Use this package when a reconnect must resume from application processing, rather than from the most recently received transport event. The server must implement [protocol v1](../PROTOCOL.md), retain history, and provide an application snapshot path when recovery is no longer possible.

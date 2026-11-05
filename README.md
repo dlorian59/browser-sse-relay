@@ -3,153 +3,131 @@
 <details name="readme-language">
 <summary><picture><source media="(prefers-color-scheme: dark)" srcset="assets/lang-en-dark.svg"><img src="assets/lang-en-light.svg" width="42" height="26" alt="EN"></picture></summary>
 
-Version: [0.1.0 guide](docs/v0.1.0/guide.en.md) · [API 0.1.0](docs/v0.1.0/reference.en.md) · [All documentation](docs/index.md)
+SSE delivery for dashboards, order tracking and notifications. It reconnects from the last **successfully processed** event, so a temporary network failure does not silently move the application past unfinished work.
 
-Recover an SSE stream from the last event your application successfully handled and checkpointed. Includes an independent TypeScript browser client and a Node reference relay with bounded retained history.
+Use it when your server retains events and supports the relay protocol. It is a browser transport, not an event database or an OAuth server.
 
-**v0.1.0 implementation is available in source. npm publication and a production application integration are not completed.**
+## Get started — your existing TypeScript application
 
-## Capabilities
+Add this dependency to your project's `package.json`:
 
-| Capability | Behavior and example |
-|---|---|
-| Awaited application processing | Handler → checkpoint → committed cursor. A failed checkpoint can repeat an effect. [Example](docs/v0.1.0/guide.en.md#process-and-checkpoint) |
-| Replay and relay failover | Resume opaque account/stream-scoped cursors; verify the replay/live boundary. [Example](docs/v0.1.0/guide.en.md#reference-relay-and-handoff) |
-| Retry and authentication | Bounded attempts, jitter, timeouts, key-bound DPoP proofs, nonce retry and optional token refresh. [Example](docs/v0.1.0/guide.en.md#retry-and-authentication) |
-| Cancellation and logout | Abort transport/timers; prevent future handlers; await in-flight work before clearing the account cursor. [Example](docs/v0.1.0/guide.en.md#stop-and-logout) |
-| Explicit resynchronization | Expired history and queue overflow stop with resync; resume from a matching application snapshot and cursor. [Example](docs/v0.1.0/guide.en.md#snapshot-after-resync) |
-| Bounded resources | Frame bytes, queue count/bytes, duplicate window, retained history, scopes and subscribers all have limits. [Example](docs/v0.1.0/guide.en.md#limits-and-contracts) |
-| Reproducible failure demo | Two real HTTP relay listeners, lost connection, repeated effect after checkpoint failure, retention expiry, snapshot recovery and logout. [Run it](docs/v0.1.0/guide.en.md#run-and-verify) |
-
-The client cannot recover unretained events. Exactly-once effects are not promised. The reference relays share one in-memory object in one process; they do not provide distributed or durable storage.
-
-## Try it locally
-
-Requires Node 22.12 or newer and npm. No credentials are needed for the loopback-only demo.
-
-```sh
-npm ci
-npm test
-npm run demo
+```json
+{ "dependencies": { "@59alex/browser-sse-relay": "0.1.0" } }
 ```
 
-Visit the URL printed by the demo. It never opens a desktop window automatically. Start, publish, disconnect, then try “Offline + expire history” and “Apply snapshot + resume”.
+Coordinates identify the current source version; npm publication is still pending. Your artifact source must provide this version.
 
-To verify installation without claiming registry publication:
-
-```sh
-npm run test:package
-# Produces output/59alex-browser-sse-relay-0.1.0.tgz and tests a clean consumer.
-npm install /path/to/59alex-browser-sse-relay-0.1.0.tgz
-```
-
-A practical dashboard walkthrough and the optional React integration are described in the [English guide](docs/v0.1.0/guide.en.md#practical-scenario-a-dashboard-that-survives-disconnects). The [React adapter](https://github.com/dlorian59/browser-sse-relay-react) is public; npm publication is pending.
-
-For authenticated streams, use [DPoP setup and the complete integration example](docs/dpop.en.md): fresh request proofs, token/key binding, nonce challenges and server verification. Generic headers remain compatible.
-
-## Minimal client
+Copy this module into `src/orders/order-updates.ts`. Pass your existing authenticated fetch and the action that applies an order notification:
 
 ```ts
-import { SseRelayClient, MemoryCheckpointStore } from '@59alex/browser-sse-relay';
+import { createJsonRelay, RelayProfiles } from '@59alex/browser-sse-relay';
 
-const client = new SseRelayClient({
-  scope: { accountId: 'authenticated-account', streamId: 'notifications' },
-  url: '/api/events',
-  checkpoint: new MemoryCheckpointStore(),
-  async onEvent(event) { console.log(event.id, event.data); },
-});
-void client.start().then(result => console.log(result.state, result.reason));
-// On application teardown: client.stop();
-// При завершении приложения: client.stop();
+export interface OrderNotice { key: string; text: string }
+export function decodeOrderNotice(value: unknown): OrderNotice {
+  // These are your business fields; invalid messages must not advance the cursor.
+  // Это бизнес-поля приложения; неверное сообщение не должно продвигать курсор.
+  if (!value || typeof value !== 'object' || !('key' in value) || !('text' in value)
+      || typeof value.key !== 'string' || !value.key || typeof value.text !== 'string') {
+    throw new TypeError('Invalid order notification');
+  }
+  return { key: value.key, text: value.text };
+}
+export function watchOrderUpdates(accountId: string, authenticatedFetch: typeof fetch,
+  applyNotice: (notice: OrderNotice, signal: AbortSignal) => void | Promise<void>) {
+  // Reuse the application's authenticated transport; the relay owns reconnect and checkpoint ordering.
+  // Используем авторизованный транспорт приложения; relay управляет повторами и порядком checkpoint.
+  return createJsonRelay({
+    ...RelayProfiles.NOTIFICATIONS,
+    scope: { accountId, streamId: 'notifications' },
+    url: '/api/events', fetch: authenticatedFetch,
+    decode: decodeOrderNotice,
+    onData: (notice, context) => applyNotice(notice, context.signal),
+  });
+}
 ```
 
-The endpoint must implement protocol v1, and scope must match the authenticated account. Effects may repeat if checkpointing fails; make real handlers idempotent. A persisted cursor requires corresponding application state or snapshot recovery.
+Call `start()` on the returned session when the view opens; call `stop()` when it closes. The server endpoint is `/api/events`, the stream is `notifications`, and payloads contain `key` and `text`. Account identity must match the verified server session.
 
-See [the English guide](docs/v0.1.0/guide.en.md), [русское руководство](docs/v0.1.0/guide.ru.md) · [API 0.1.0](docs/v0.1.0/reference.ru.md), [protocol](docs/PROTOCOL.md), and [verification record](docs/VERIFICATION.md).
+[Full module and walkthrough](docs/integration.en.md) · [DPoP](docs/dpop.en.md) · [React](https://github.com/dlorian59/browser-sse-relay-react)
 
-## Language and runtime
+## What you can do
 
-Library version **0.1.0** is independent of the compiler version: **TypeScript 5.9.3**, strict declarations, emitted **ES2022 ESM**. Interfaces, readonly contracts and union types are compile-time tools; runtime validation covers scopes, cursors, limits and protocol controls. Runtime APIs include fetch streaming, ReadableStream, TextDecoder, Headers and AbortController. No framework or native EventSource is required. [Version-specific details](docs/v0.1.0/guide.en.md#language-and-runtime).
+- **Receive typed business events:** `createJsonRelay({ decode, onData, ... })` parses JSON and waits for your handler before saving its position. [Order workflow](docs/integration.en.md#receive-orders).
+- **Start with sensible limits:** `...RelayProfiles.NOTIFICATIONS` or `...RelayProfiles.LIVE_FEED` supplies named timeout, retry and queue settings. [Choose a profile](docs/integration.en.md#profiles).
+- **Reconnect with key-bound authentication:** `fetch: createDpopFetch(session)` creates fresh proofs and handles a nonce challenge. [OAuth integration](docs/dpop.en.md).
+- **Stop safely:** `client.stop()` aborts the stream; `await client.logout()` also clears its checkpoint after work settles. [Lifecycle](docs/integration.en.md#lifecycle).
+- **Recover expired history:** inspect the `resync` result and resume from a matching snapshot/cursor. [Recovery](docs/v0.1.0/guide.en.md#snapshot-after-resync).
 
-## License and provenance
+## Learn more
 
-[MIT](LICENSE), copyright 2026 Aleksandr Kashevarov. SSE field parsing uses [eventsource-parser](https://github.com/rexxars/eventsource-parser) 4.1.2 under its own MIT license. [Parser decision and alternatives](docs/PARSER-DECISION.md). No private application configuration or infrastructure is included.
+[Guided integration](docs/integration.en.md) → [Detailed behavior](docs/v0.1.0/guide.en.md) → [API reference](docs/v0.1.0/reference.en.md). [Versions and languages](docs/index.md) · [Develop/run examples](CONTRIBUTING.md).
+
+Effects can repeat after checkpoint failure: business handlers must tolerate retries. The Node relay is a bounded in-memory reference, not durable distributed storage. No exactly-once promise. MIT licensed; see [LICENSE](LICENSE).
 
 </details>
 
 <details name="readme-language" open>
 <summary><picture><source media="(prefers-color-scheme: dark)" srcset="assets/lang-ru-dark.svg"><img src="assets/lang-ru-light.svg" width="42" height="26" alt="RU"></picture></summary>
 
-Версия: [руководство 0.1.0](docs/v0.1.0/guide.ru.md) · [Вся документация](docs/index.md)
+Доставка событий для панелей управления, состояния заказов и уведомлений. После обрыва соединение продолжается с последнего **успешно обработанного** события: приложение не пропускает работу, которую ещё не завершило.
 
-Восстанавливайте SSE-поток с последнего события, которое приложение успешно обработало и сохранило в checkpoint. В репозитории — независимый TypeScript-клиент для браузера и эталонный Node relay с ограниченной историей событий.
+Подходит, если сервер хранит события и поддерживает протокол relay. Это браузерный транспорт; он не заменяет базу событий и сервер авторизации.
 
-**Реализация v0.1.0 доступна в исходниках. Публикация в npm и интеграция в рабочее приложение пока не завершены.**
+## Get started — существующее приложение TypeScript
+
+Добавьте зависимость в `package.json` своего проекта:
+
+```json
+{ "dependencies": { "@59alex/browser-sse-relay": "0.1.0" } }
+```
+
+Координаты соответствуют текущим исходникам; публикация в npm ещё не выполнена. Эта версия должна быть доступна из вашего источника пакетов.
+
+Поместите модуль в `src/orders/order-updates.ts`. Передайте готовый авторизованный fetch приложения и действие, применяющее уведомление о заказе:
+
+```ts
+import { createJsonRelay, RelayProfiles } from '@59alex/browser-sse-relay';
+
+export interface OrderNotice { key: string; text: string }
+export function decodeOrderNotice(value: unknown): OrderNotice {
+  // These are your business fields; invalid messages must not advance the cursor.
+  // Это бизнес-поля приложения; неверное сообщение не должно продвигать курсор.
+  if (!value || typeof value !== 'object' || !('key' in value) || !('text' in value)
+      || typeof value.key !== 'string' || !value.key || typeof value.text !== 'string') {
+    throw new TypeError('Invalid order notification');
+  }
+  return { key: value.key, text: value.text };
+}
+export function watchOrderUpdates(accountId: string, authenticatedFetch: typeof fetch,
+  applyNotice: (notice: OrderNotice, signal: AbortSignal) => void | Promise<void>) {
+  // Reuse the application's authenticated transport; the relay owns reconnect and checkpoint ordering.
+  // Используем авторизованный транспорт приложения; relay управляет повторами и порядком checkpoint.
+  return createJsonRelay({
+    ...RelayProfiles.NOTIFICATIONS,
+    scope: { accountId, streamId: 'notifications' },
+    url: '/api/events', fetch: authenticatedFetch,
+    decode: decodeOrderNotice,
+    onData: (notice, context) => applyNotice(notice, context.signal),
+  });
+}
+```
+
+Вызовите `start()` у возвращённой сессии при открытии экрана, `stop()` — при закрытии. Endpoint сервера — `/api/events`, поток — `notifications`, поля сообщения — `key` и `text`. Аккаунт должен соответствовать проверенной серверной сессии.
+
+[Полный модуль и разбор](docs/integration.ru.md) · [DPoP](docs/dpop.ru.md) · [React](https://github.com/dlorian59/browser-sse-relay-react)
 
 ## Возможности
 
-| Возможность | Поведение и пример |
-|---|---|
-| Ожидание обработки приложением | Обработчик → checkpoint → подтверждённый курсор. Ошибка checkpoint может повторить побочный эффект. [Пример](docs/v0.1.0/guide.ru.md#process-and-checkpoint) |
-| Replay и смена relay | Восстановление по непрозрачному курсору в области аккаунта и потока; проверка границы replay/live. [Пример](docs/v0.1.0/guide.ru.md#reference-relay-and-handoff) |
-| Повторы и авторизация | Ограничение попыток, jitter, тайм-ауты, привязанные к ключу DPoP proofs, nonce retry и обновление токена. [Пример](docs/v0.1.0/guide.ru.md#retry-and-authentication) |
-| Отмена и logout | Остановка транспорта и таймеров, запрет новых обработчиков, ожидание текущей операции перед удалением курсора аккаунта. [Пример](docs/v0.1.0/guide.ru.md#stop-and-logout) |
-| Явная ресинхронизация | Истёкшая история и переполнение очереди требуют resync; продолжение возможно с согласованным snapshot и курсором. [Пример](docs/v0.1.0/guide.ru.md#snapshot-after-resync) |
-| Ограничение ресурсов | Лимиты байтов кадра, размера очередей, окна дублей, истории, числа потоков и подписчиков. [Пример](docs/v0.1.0/guide.ru.md#limits-and-contracts) |
-| Воспроизводимое демо отказов | Два HTTP relay, обрыв соединения, повтор эффекта после ошибки checkpoint, истечение истории, snapshot и logout. [Запуск](docs/v0.1.0/guide.ru.md#run-and-verify) |
+- **Получать бизнес-события:** `createJsonRelay({ decode, onData, ... })` разбирает JSON и сохраняет позицию только после завершения обработчика. [Сценарий заказов](docs/integration.ru.md#receive-orders).
+- **Выбрать готовые настройки:** `...RelayProfiles.NOTIFICATIONS` или `...RelayProfiles.LIVE_FEED` задаёт именованные тайм-ауты, повторы и ограничения очереди. [Выбор профиля](docs/integration.ru.md#profiles).
+- **Подключаться с привязанным к ключу токеном:** `fetch: createDpopFetch(session)` создаёт новый proof и обрабатывает nonce сервера. [Интеграция OAuth](docs/dpop.ru.md).
+- **Остановить работу:** `client.stop()` отменяет поток; `await client.logout()` дополнительно удаляет checkpoint после завершения текущей работы. [Жизнь сессии](docs/integration.ru.md#lifecycle).
+- **Восстановить данные после удаления истории:** результат `resync` требует согласованного снимка и курсора. [Восстановление](docs/v0.1.0/guide.ru.md#snapshot-after-resync).
 
-Клиент не восстанавливает события, которых уже нет на сервере. Exactly-once для побочных эффектов не обещается. Эталонные relay используют один объект в памяти одного процесса; это не распределённое и не долговечное хранилище.
+## Освоение
 
-## Локальный запуск
+[Пошаговая интеграция](docs/integration.ru.md) → [Подробное поведение](docs/v0.1.0/guide.ru.md) → [Справочник API](docs/v0.1.0/reference.ru.md). [Версии и языки](docs/index.md) · [Разработка и запуск примеров](CONTRIBUTING.md).
 
-Нужны Node 22.12 или новее и npm. Для демо на loopback-адресе учётные данные не требуются.
-
-```sh
-npm ci
-npm test
-npm run demo
-```
-
-Откройте адрес из вывода демо. Программа сама не открывает окна на рабочем столе. Запустите сессию, опубликуйте события, оборвите соединение, затем попробуйте “Offline + expire history” и “Apply snapshot + resume”.
-
-Проверка установки без заявления о публикации в реестре:
-
-```sh
-npm run test:package
-# Создаёт output/59alex-browser-sse-relay-0.1.0.tgz и проверяет чистый consumer.
-npm install /path/to/59alex-browser-sse-relay-0.1.0.tgz
-```
-
-Практический сценарий панели и отдельная React-интеграция описаны в [русском руководстве](docs/v0.1.0/guide.ru.md#практический-сценарий-панель-переживает-обрыв-соединения). [React-адаптер](https://github.com/dlorian59/browser-sse-relay-react) опубликован; npm-релиз пока не выполнялся.
-
-Для защищённых потоков — [настройка DPoP и полный пример интеграции](docs/dpop.ru.md): свежий proof запроса, привязка токена к ключу, nonce challenge и серверная проверка. Generic headers остаются совместимыми.
-
-## Минимальный клиент
-
-```ts
-import { SseRelayClient, MemoryCheckpointStore } from '@59alex/browser-sse-relay';
-
-const client = new SseRelayClient({
-  scope: { accountId: 'authenticated-account', streamId: 'notifications' },
-  url: '/api/events',
-  checkpoint: new MemoryCheckpointStore(),
-  async onEvent(event) { console.log(event.id, event.data); },
-});
-void client.start().then(result => console.log(result.state, result.reason));
-// On application teardown: client.stop();
-// При завершении приложения: client.stop();
-```
-
-Endpoint должен реализовать протокол v1, а scope — соответствовать авторизованному аккаунту. При ошибке checkpoint эффект может повториться; реальные обработчики должны быть идемпотентными. Для сохранённого курсора нужно соответствующее состояние приложения или восстановление snapshot.
-
-См. [русское руководство](docs/v0.1.0/guide.ru.md), [English guide](docs/v0.1.0/guide.en.md), [протокол](docs/PROTOCOL.md) и [результаты проверок](docs/VERIFICATION.md).
-
-## Язык и среда выполнения
-
-Версия библиотеки **0.1.0** не является версией компилятора: используется **TypeScript 5.9.3**, строгая типизация и генерация **ES2022 ESM**. Интерфейсы, readonly-контракты и union-типы действуют при компиляции; во время выполнения проверяются scope, курсоры, лимиты и управляющие кадры. Используются fetch streaming, ReadableStream, TextDecoder, Headers и AbortController. Фреймворк и нативный EventSource не требуются. [Подробности версии](docs/v0.1.0/guide.ru.md#language-and-runtime).
-
-## Лицензия и происхождение
-
-[MIT](LICENSE), copyright 2026 Aleksandr Kashevarov. Для разбора полей SSE используется [eventsource-parser](https://github.com/rexxars/eventsource-parser) 4.1.2 под собственной MIT-лицензией. [Выбор парсера и альтернативы](docs/PARSER-DECISION.md). Приватные конфигурации приложений и инфраструктура в библиотеку не входят.
+При ошибке сохранения checkpoint действие может повториться: бизнес-обработчик должен это учитывать. Node relay — ограниченный журнал в памяти для примера, а не распределённое долговечное хранилище. Гарантия exactly-once не заявляется. Лицензия MIT: [LICENSE](LICENSE).
 
 </details>
