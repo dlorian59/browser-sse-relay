@@ -7,7 +7,7 @@
   "author": "Aleksandr Kashevarov",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/59Alex/browser-sse-relay.git"
+    "url": "git+https://github.com/dlorian59/browser-sse-relay.git"
   },
   "engines": {
     "node": ">=22.12"

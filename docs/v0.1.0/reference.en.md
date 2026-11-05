@@ -2,7 +2,7 @@
 
 [← Documentation](../index.md) · [Guide](guide.en.md) · [Русский](reference.ru.md) · [README](../../README.md)
 
-This reference covers the public exports of the browser entry and /server entry. Parser, queue and wire-encoding helpers are implementation details, not package exports. ESM only; browser entry has no Node dependency. [Client source](https://github.com/59Alex/browser-sse-relay/blob/main/src/client.ts), [checkpoint source](https://github.com/59Alex/browser-sse-relay/blob/main/src/checkpoint.ts), [server source](https://github.com/59Alex/browser-sse-relay/blob/main/src/server/index.ts).
+This reference covers the public exports of the browser entry and /server entry. Parser, queue and wire-encoding helpers are implementation details, not package exports. ESM only; browser entry has no Node dependency. [Client source](https://github.com/dlorian59/browser-sse-relay/blob/main/src/client.ts), [checkpoint source](https://github.com/dlorian59/browser-sse-relay/blob/main/src/checkpoint.ts), [server source](https://github.com/dlorian59/browser-sse-relay/blob/main/src/server/index.ts).
 
 ## Browser exports and identity
 
@@ -101,7 +101,7 @@ MemoryCheckpointStore() creates an empty map; clearing a scope does not affect a
 
 ### HistoryOptions
 
-All numeric options are positive safe integers; retentionMs is an age comparison, not a setTimeout. [History implementation](https://github.com/59Alex/browser-sse-relay/blob/main/src/server/history.ts).
+All numeric options are positive safe integers; retentionMs is an age comparison, not a setTimeout. [History implementation](https://github.com/dlorian59/browser-sse-relay/blob/main/src/server/history.ts).
 
 | Option | Default | Scope / meaning |
 |---|---|---|
@@ -140,11 +140,11 @@ HistorySubscription is normally obtained through subscribe, not manually constru
 
 createNodeRelay returns an async (IncomingMessage,ServerResponse) handler. Host mounts route, supplies TLS, CORS allowlists, auth, request/proxy timeouts and buffering policy. It handles GET only (405 with Allow otherwise), auth (401/403), invalid request (400), unavailable cursor/replay capacity (409), other pre-header failure (503). Successful headers include text/event-stream, X-Relay-Protocol:1, no-cache/no-transform and X-Accel-Buffering:no. These are hints; configure actual proxy buffering and compression explicitly. Browser cross-origin clients need appropriate CORS and exposed X-Relay-Protocol; allow Authorization and Last-Event-ID when used.
 
-Heartbeat frames share the bounded writer/drain loop. Resync after headers is sent as a control only when the socket is writable; blocked or broken sockets are destroyed. Reconnect then validates retention again. close/error removes the subscription, listeners and timer. Authenticate/authorize promises have no library deadline or AbortSignal parameter: the host must bound external auth work; a closed response is rechecked after awaited hooks. [Actual server demo](https://github.com/59Alex/browser-sse-relay/blob/main/demo/server.mjs).
+Heartbeat frames share the bounded writer/drain loop. Resync after headers is sent as a control only when the socket is writable; blocked or broken sockets are destroyed. Reconnect then validates retention again. close/error removes the subscription, listeners and timer. Authenticate/authorize promises have no library deadline or AbortSignal parameter: the host must bound external auth work; a closed response is rechecked after awaited hooks. [Actual server demo](https://github.com/dlorian59/browser-sse-relay/blob/main/demo/server.mjs).
 
 ## Protocol, examples and troubleshooting
 
-The complete ordering and wire contract is [protocol v1](../PROTOCOL.md), also available [in Russian](../PROTOCOL.ru.md). The [guide](guide.en.md) provides checked client/store/auth/stop/server/snapshot examples. The [failure demo](https://github.com/59Alex/browser-sse-relay/blob/main/demo/demo.js) shows actual replay and recovery; source links refer to repository files and may be unavailable while public account access is blocked.
+The complete ordering and wire contract is [protocol v1](../PROTOCOL.md), also available [in Russian](../PROTOCOL.ru.md). The [guide](guide.en.md) provides checked client/store/auth/stop/server/snapshot examples. The [failure demo](https://github.com/dlorian59/browser-sse-relay/blob/main/demo/demo.js) shows actual replay and recovery; source links refer to repository files and may be unavailable while public account access is blocked.
 
 | Symptom | Check |
 |---|---|

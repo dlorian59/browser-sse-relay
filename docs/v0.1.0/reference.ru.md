@@ -2,7 +2,7 @@
 
 [← Документация](../index.md) · [Руководство](guide.ru.md) · [English](reference.en.md) · [README](../../README.md)
 
-Здесь перечислены публичные exports браузерного entry и /server. Parser, queue и функции кодирования кадров — внутренние детали, не exports пакета. Только ESM; browser entry не зависит от Node. Исходники: [клиент](https://github.com/59Alex/browser-sse-relay/blob/main/src/client.ts), [checkpoint](https://github.com/59Alex/browser-sse-relay/blob/main/src/checkpoint.ts), [server entry](https://github.com/59Alex/browser-sse-relay/blob/main/src/server/index.ts).
+Здесь перечислены публичные exports браузерного entry и /server. Parser, queue и функции кодирования кадров — внутренние детали, не exports пакета. Только ESM; browser entry не зависит от Node. Исходники: [клиент](https://github.com/dlorian59/browser-sse-relay/blob/main/src/client.ts), [checkpoint](https://github.com/dlorian59/browser-sse-relay/blob/main/src/checkpoint.ts), [server entry](https://github.com/dlorian59/browser-sse-relay/blob/main/src/server/index.ts).
 
 ## Browser exports и идентичность
 
@@ -101,7 +101,7 @@ MemoryCheckpointStore() создаёт пустую map; clear одного scop
 
 ### HistoryOptions
 
-Все числовые параметры — положительные safe integer; retentionMs участвует в сравнении возраста, а не setTimeout. [Исходник](https://github.com/59Alex/browser-sse-relay/blob/main/src/server/history.ts).
+Все числовые параметры — положительные safe integer; retentionMs участвует в сравнении возраста, а не setTimeout. [Исходник](https://github.com/dlorian59/browser-sse-relay/blob/main/src/server/history.ts).
 
 | Параметр | Значение | Область / смысл |
 |---|---|---|
@@ -140,11 +140,11 @@ HistorySubscription получают через subscribe, не создают �
 
 createNodeRelay возвращает async (IncomingMessage,ServerResponse). Приложение задаёт route, TLS, CORS allowlists, auth, request/proxy timeouts и buffering policy. Handler принимает GET (иначе 405 с Allow), возвращает 401/403 при auth,400 при неверном запросе,409 при недоступном cursor/replay capacity,503 при иной ошибке до headers. При успехе: text/event-stream, X-Relay-Protocol:1, no-cache/no-transform, X-Accel-Buffering:no. Это подсказки: реальные proxy buffering/compression настраиваются отдельно. Для cross-origin нужны CORS, exposed X-Relay-Protocol и разрешённые Authorization/Last-Event-ID, если используются.
 
-Heartbeat идёт через тот же bounded writer/drain loop. Resync после headers отправляется control-кадром только при доступном сокете; заблокированный/сломанный сокет уничтожается. Reconnect снова проверяет retention. Close/error удаляет subscription/listeners/timer. У authenticate/authorize нет собственного timeout и аргумента AbortSignal: приложение ограничивает внешнюю auth-работу; закрытие response проверяется после awaited hooks. [Исполняемый server demo](https://github.com/59Alex/browser-sse-relay/blob/main/demo/server.mjs).
+Heartbeat идёт через тот же bounded writer/drain loop. Resync после headers отправляется control-кадром только при доступном сокете; заблокированный/сломанный сокет уничтожается. Reconnect снова проверяет retention. Close/error удаляет subscription/listeners/timer. У authenticate/authorize нет собственного timeout и аргумента AbortSignal: приложение ограничивает внешнюю auth-работу; закрытие response проверяется после awaited hooks. [Исполняемый server demo](https://github.com/dlorian59/browser-sse-relay/blob/main/demo/server.mjs).
 
 ## Протокол, примеры и диагностика
 
-Полный контракт: [протокол v1 на русском](../PROTOCOL.ru.md), [English](../PROTOCOL.md). [Руководство](guide.ru.md) содержит проверяемые примеры client/store/auth/stop/server/snapshot; [демо](https://github.com/59Alex/browser-sse-relay/blob/main/demo/demo.js) показывает replay/recovery. Ссылки на исходники относятся к файлам репозитория; при блокировке публичного аккаунта они могут быть недоступны.
+Полный контракт: [протокол v1 на русском](../PROTOCOL.ru.md), [English](../PROTOCOL.md). [Руководство](guide.ru.md) содержит проверяемые примеры client/store/auth/stop/server/snapshot; [демо](https://github.com/dlorian59/browser-sse-relay/blob/main/demo/demo.js) показывает replay/recovery. Ссылки на исходники относятся к файлам репозитория; при блокировке публичного аккаунта они могут быть недоступны.
 
 | Симптом | Что проверить |
 |---|---|
