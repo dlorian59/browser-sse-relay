@@ -2,6 +2,13 @@
 
 [← Back to repository README / Назад к README библиотеки](README.md)
 
+## Source update — 2026-11-05
+
+- Add optional RFC 9449 DPoP proof helpers and a GET-only fetch adapter: non-extractable P-256 keys, per-request proof, trusted-origin checks, one nonce challenge retry and cancellation.
+- Replace simple Bearer demo authentication with key-bound synthetic sessions and actual signature/token binding/replay checks; close streams at token expiry. The demo is not a production OAuth service.
+- Add bilingual setup/server guidance and a typed integration example; keep existing generic transport, replay and checkpoint contracts.
+- Registry publication is unchanged; this is an update to the unpublished 0.1.0 source.
+
 ## 0.1.0 — 2026-10-24
 
 Initial source implementation; npm publication is pending.

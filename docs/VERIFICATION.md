@@ -4,6 +4,16 @@
 
 [Documentation index](index.md) · [English guide](v0.1.0/guide.en.md) · [Русское руководство](v0.1.0/guide.ru.md)
 
+## DPoP update — 2026-11-05
+
+- `npm test`: 56 passing tests, including real ES256 signature checks, token/key/URL/method binding, replay rejection, bounded nonce retries, origin restrictions, cancellation and an HTTP redirect that never reaches its target.
+- The demo verifier rejects missing proofs and Bearer tokens, fails closed when session/replay capacity is full, checks nonce and closes live SSE at token expiry. Synthetic token issuance remains demo-only; no real OAuth issuer was integrated in this check.
+- `npm run test:browser`: all seven Chromium recovery scenarios passed using actual DPoP requests and cross-origin nonce challenges. Replay, checkpoint-failure duplication, retention resync, reload recovery and logout remain covered.
+- `npm run test:package`: clean tarball consumer checks declarations, both EN/RU guides and README snippets, the packaged `examples/dpop-session.ts`, and a real HTTP event/checkpoint. No registry publication.
+- DPoP has been exercised in Node and Chromium. Firefox/WebKit, persistent-key storage, a real OAuth deployment and shared replay storage across replicas are not verified here.
+
+## Earlier verification — 2026-10-24
+
 Local verification on 2026-10-24 used Linux, Node 24.21.0, npm 11.19.0, TypeScript 5.9.3 and Playwright 1.64.1. Java versions do not apply to this TypeScript package.
 
 | Check | Actual result |

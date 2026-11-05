@@ -16,7 +16,7 @@ try {
   await page.waitForFunction(() => window.demo?.metrics().state === 'live');
   await page.getByRole('button', { name: 'Publish one', exact: true }).click();
   await page.waitForFunction(() => window.demo.metrics().value === 1 && window.demo.metrics().cursor !== null);
-  report.scenarios.push('authenticated cross-origin stream and first checkpoint');
+  report.scenarios.push('DPoP-authenticated cross-origin stream, nonce challenge and first checkpoint');
 
   await page.getByRole('button', { name: 'Disconnect + publish three', exact: true }).click();
   await page.waitForFunction(() => window.demo.metrics().value === 4 && window.demo.metrics().connections.includes('b') && window.demo.metrics().state === 'live');

@@ -13,7 +13,7 @@
 | Задача | API |
 |---|---|
 | Сначала обработать, затем сохранить курсор | SseRelayClient.onEvent и CheckpointStore |
-| Повторить запрос со свежей авторизацией | headers, refreshAuth, настройки retry |
+| Повторить запрос со свежей авторизацией | createDpopFetch, refreshAuth, настройки retry |
 | Разделить аккаунты и потоки | StreamScope и scoped-ключи checkpoint |
 | Остановить сессию и очистить состояние аккаунта | stop(), терминальный результат start(), logout() |
 | Восстановиться через другой reference relay | MemoryEventStore и createNodeRelay |
@@ -28,7 +28,7 @@
 
 Результат: Start → Publish → Disconnect/replay сохраняет актуальное значение. Ошибка checkpoint демонстрирует возможный повтор эффекта. Offline + expire history приводит к resync. Apply snapshot + resume сначала применяет значение счётчика, затем соответствующий курсор. При reload сохранённый курсор также вызывает получение снимка: localStorage хранит позицию, а не состояние страницы в памяти.
 
-Для React-панели уведомлений отдельная [интеграция browser-sse-relay-react](https://github.com/dlorian59/browser-sse-relay-react) предоставляет provider, hook и доступный компонент статуса поверх того же протокола. Исходники подготовлены локально; публичный репозиторий и npm-релиз ещё ожидают публикации. В соседнем checkout файлы examples/notifications/main.tsx и server.mjs показывают уведомления по аккаунтам, StrictMode, logout и snapshot recovery. Стандартный checkpoint живёт вместе с provider/scope; пользовательское постоянное хранилище по-прежнему требует соответствующего состояния приложения.
+Для React-панели уведомлений отдельная [интеграция browser-sse-relay-react](https://github.com/dlorian59/browser-sse-relay-react) предоставляет provider, hook и доступный компонент статуса поверх того же протокола. Репозиторий опубликован; npm-релиз пока не выполнялся. В соседнем checkout файлы examples/notifications/main.tsx и server.mjs показывают уведомления по аккаунтам, StrictMode, logout и snapshot recovery. Стандартный checkpoint живёт вместе с provider/scope; пользовательское постоянное хранилище по-прежнему требует соответствующего состояния приложения.
 
 Граница: relay-пример работает в одном процессе, без durable/distributed storage. Production-снимку нужны согласованные состояние/курсор и авторизованный аккаунт. Идемпотентность и надёжное выполнение бизнес-эффектов задаёт приложение.
 
@@ -94,33 +94,36 @@ const finished = client.start();
 <a id="retry-and-authentication"></a>
 ## Повторы и авторизация
 
-Следующие настройки передаются при создании клиента из предыдущего примера. Endpoint обновления токена и формат его JSON — контракт приложения; библиотека не реализует identity provider.
+Для защищённого потока уведомлений используйте DPoP-токен своего OAuth-провайдера. Адаптер подписывает каждый GET тем же ключом, с которым получен токен; при проверке привязки сервером одного скопированного токена недостаточно. [Настройка, серверные проверки и диагностика](../dpop.ru.md) · [Код интеграции](../../examples/dpop-session.ts).
 
 ```ts
-let token = 'initial-application-token';
-const authentication = {
-  headers: () => ({ Authorization: `Bearer ${token}` }),
-  async refreshAuth({ signal }) {
-    const response = await fetch('/api/token/refresh', { method: 'POST', signal });
-    if (!response.ok) return false;
-    const body = await response.json();
-    if (typeof body.token !== 'string') return false;
-    token = body.token;
-    return true;
-  },
-  retry: { maxAttempts: 8, minDelayMs: 250, maxDelayMs: 10000, jitter: 0.2 },
-  connectTimeoutMs: 10000,
-  idleTimeoutMs: 45000,
-} satisfies Partial<import('@59alex/browser-sse-relay').RelayOptions>;
+import { createDpopFetch, type RelayOptions } from '@59alex/browser-sse-relay';
 
-client = new SseRelayClient({ ...options, ...authentication });
+export function authenticatedClient(
+  keyPair: CryptoKeyPair,
+  readAccessToken: (signal: AbortSignal) => string | Promise<string>,
+  refreshAccessToken: (signal: AbortSignal) => boolean | Promise<boolean>,
+) {
+  // The OAuth client must obtain and refresh tokens using this same key.
+  // OAuth-клиент должен получать и обновлять токены с тем же ключом.
+  const authentication = {
+    fetch: createDpopFetch({ keyPair, origin: location.origin, getAccessToken: readAccessToken }),
+    refreshAuth: ({ signal }) => refreshAccessToken(signal),
+    retry: { maxAttempts: 8, minDelayMs: 250, maxDelayMs: 10000, jitter: 0.2 },
+    connectTimeoutMs: 10000,
+    idleTimeoutMs: 45000,
+  } satisfies Partial<RelayOptions>;
+  return new SseRelayClient({ ...options, ...authentication });
+}
 ```
 
-Используйте эту конфигурацию вместо создания предыдущего клиента: два владельца одного checkpoint одновременно запускать нельзя. Headers формируются заново перед каждым запросом. HTTP 401 вызывает refreshAuth, если он задан; false или исключение завершают авторизацию. HTTP 403 терминален. Повторные 401 всё равно расходуют конечный бюджет. maxAttempts — число всех соединений одной сессии вместе с первым; после периода успешной работы счётчик не сбрасывается.
+Используйте возвращённый клиент вместо запуска предыдущего: у одного checkpoint scope должен быть один владелец. Передайте ключ OAuth-сессии, получение текущего токена и его обновление. Не создавайте новый ключ при каждом reconnect. `createDpopFetch` заново формирует Authorization/DPoP, обрабатывает один nonce challenge на вызов, запрещает другие origin и redirects. Адаптер принимает только GET и поэтому не повторяет потоковые загрузки или бизнес-команды.
 
-Сетевые ошибки, тайм-ауты заголовков/простоя, HTTP 408/429 и 5xx вызывают повтор с ограниченной задержкой и jitter. Подсказки SSE retry и HTTP Retry-After ограничиваются настроенным диапазоном. Другие HTTP-ошибки и некорректные управляющие кадры завершают сессию. HTTP 204 закрывает её штатно, 409/410 требуют resync. Редиректы запрещены. Для cross-origin запросов сервер должен разрешить конкретный origin и заголовки запроса, а также открыть клиенту X-Relay-Protocol; демо показывает эту настройку host-приложения.
+Если адаптер вернул 401, relay вызывает настроенный `refreshAuth`. False или исключение refresh завершают авторизацию; 403 терминален. Повторные 401 расходуют конечный бюджет соединений. Одно соединение может выполнить до двух HTTP-запросов из-за nonce challenge; maxAttempts считает соединения relay, а не эти внутренние запросы, и не сбрасывается после успешной работы. Generic `headers` и cookie-based `credentials` доступны приложениям с другими контрактами авторизации.
 
-На здоровом, но тихом потоке сервер должен присылать комментарии/heartbeat чаще idleTimeoutMs. Таймеры ограничивают ожидание сети; обработчики приложения, обновление токена и checkpoint-адаптеры сами отвечают за завершение своих асинхронных операций.
+Сетевые ошибки, тайм-ауты, HTTP 408/429 и 5xx повторяются с ограниченной задержкой и jitter. SSE retry и HTTP Retry-After ограничены заданным диапазоном. HTTP 204 штатно закрывает поток, 409/410 требует resync. Другие HTTP-ошибки и неверные управляющие кадры завершаются ошибкой. Для cross-origin сервер разрешает Authorization, DPoP и Last-Event-ID, открывает X-Relay-Protocol, DPoP-Nonce и WWW-Authenticate конкретному origin приложения.
+
+В спокойном потоке heartbeat должен приходить чаще idleTimeoutMs. После EOF byte-idle timer останавливается, пока обрабатываются полученные события. Connect timer охватывает DPoP fetch wrapper, но получение токена должно учитывать AbortSignal и завершать promise: таймер не прерывает произвольный код приложения. То же относится к обработчикам и checkpoint adapters.
 
 <a id="stop-and-logout"></a>
 ## Остановка и logout
@@ -172,24 +175,27 @@ initialCursor проверяется, сохраняется и заменяет
 <a id="reference-relay-and-handoff"></a>
 ## Эталонный relay и граница replay/live
 
-Node-пример запускает два listener, разделяющих один объект. Фиксированный bearer здесь нужен только для демонстрации; замените authenticate и authorize настоящей проверкой доступа host-приложения.
+Эта Node-фабрика запускает два listener с одним журналом. Передайте получение проверенного аккаунта из авторизации host-приложения. Nonce middleware и закрытие по expiry до подписки показаны в полном [HTTP-примере](https://github.com/dlorian59/browser-sse-relay/blob/main/demo/server.mjs) и [требованиях к серверу](../dpop.ru.md#что-обязан-проверить-resource-server).
 
 ```ts
 import { createServer } from 'node:http';
-import { MemoryEventStore, createNodeRelay } from '@59alex/browser-sse-relay/server';
+import { MemoryEventStore, createNodeRelay, type NodeRelayOptions } from '@59alex/browser-sse-relay/server';
 
-const store = new MemoryEventStore({ maxEventsPerStream: 256, retentionMs: 300000 });
-const scope = { accountId: 'demo-account', streamId: 'counter' };
-for (const port of [8081, 8082]) {
-  const relay = createNodeRelay({
-    store,
-    authenticate: request => request.headers.authorization === 'Bearer demo-only'
-      ? scope.accountId : undefined,
-    stream: () => scope.streamId,
+export function startReferenceRelays(authenticate: NodeRelayOptions['authenticate']) {
+  const store = new MemoryEventStore({ maxEventsPerStream: 256, retentionMs: 300000 });
+  const servers = [8081, 8082].map(port => {
+    const relay = createNodeRelay({
+      store,
+      // The host supplies an account derived from verified credentials.
+      // Host передаёт аккаунт, полученный из проверенных credentials.
+      authenticate,
+      stream: () => 'counter',
+    });
+    return createServer((request, response) => { void relay(request, response); })
+      .listen(port, '127.0.0.1');
   });
-  createServer((request, response) => { void relay(request, response); }).listen(port, '127.0.0.1');
+  return { store, servers };
 }
-store.append(scope, JSON.stringify({ value: 1 }), 'counter');
 ```
 
 subscribe синхронно проверяет позицию, фиксирует watermark, регистрирует подписчика и помещает hello/replay/ready в очередь, не отдавая управление event loop. Новые события идут после ready. Это детерминированная граница в одном процессе JavaScript. Тесты публикуют события, пока replay ещё не прочитан, и проверяют точный порядок результата.

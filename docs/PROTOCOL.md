@@ -22,6 +22,8 @@ The reference endpoint uses GET, `Accept: text/event-stream`, and optional `Last
 4. Live application frames continue in log order. Comments may keep the connection alive. SSE retry fields are accepted as bounded reconnect hints.
 5. `event: relay-resync` with JSON `{ reason }` ends the session when history or queue capacity cannot sustain recovery.
 
+The optional [DPoP GET transport](dpop.en.md) may handle one resource-server nonce challenge before returning a response to this state machine. This does not change protocol v1, checkpoint ordering or the scope contract. A fresh proof is generated per HTTP request; access-token issuance and verification belong to the host.
+
 HTTP 409 or 410 requires resynchronization. HTTP 401 may invoke a configured token-refresh callback once per request before a bounded retry; 403 stops as an authentication failure. HTTP 204 stops cleanly. Network failures, 408, 429, and 5xx responses consume the configured retry budget. Other unsuccessful statuses and invalid protocol responses fail closed.
 
 ## Commit boundary

@@ -11,6 +11,7 @@ await mkdir('output', { recursive: true });
 const [packed] = JSON.parse(run('npm', ['pack', '--ignore-scripts', '--json', '--pack-destination', 'output']));
 assert.equal(packed.name, '@59alex/browser-sse-relay');
 assert.ok(packed.files.some(file => file.path === 'dist/index.d.ts'));
+assert.ok(packed.files.some(file => file.path === 'examples/dpop-session.ts'));
 assert.ok(packed.files.some(file => file.path === 'dist/server/index.d.ts'));
 for (const doc of ['README.md', 'ROADMAP.md', 'docs/index.md', 'docs/v0.1.0/guide.en.md', 'docs/v0.1.0/guide.ru.md']) {
   assert.ok(packed.files.some(file => file.path === doc), `Missing packaged documentation: ${doc}`);
@@ -68,6 +69,10 @@ try {
   assert.equal(readmeSnippets[0], readmeSnippets[1], 'README EN/RU examples must match');
   await writeFile(join(consumer, 'readme.ts'), readmeSnippets[0]);
   run(process.execPath, [resolve('node_modules/typescript/bin/tsc'), '--noEmit', '--strict', '--target', 'ES2022', '--module', 'NodeNext', '--moduleResolution', 'NodeNext', '--lib', 'ES2022,DOM', 'readme.ts'], consumer);
+  // Verify the practical DPoP integration against the actual packed declarations.
+  // Проверяем практическую DPoP-интеграцию по декларациям упакованного пакета.
+  await writeFile(join(consumer, 'dpop-session.ts'), await readFile(join(consumer, 'node_modules/@59alex/browser-sse-relay/examples/dpop-session.ts'), 'utf8'));
+  run(process.execPath, [resolve('node_modules/typescript/bin/tsc'), '--noEmit', '--strict', '--target', 'ES2022', '--module', 'NodeNext', '--moduleResolution', 'NodeNext', '--lib', 'ES2022,DOM', 'dpop-session.ts'], consumer);
   const result = run(process.execPath, ['consumer.mjs'], consumer);
   await writeFile('output/package-smoke.json', JSON.stringify({ package: packed.filename, bytes: packed.size, unpackedBytes: packed.unpackedSize, files: packed.files.map(file => file.path), result: result.trim() }, null, 2) + '\n');
   console.log(JSON.stringify({ package: packed.filename, bytes: packed.size, unpackedBytes: packed.unpackedSize, result: result.trim() }, null, 2));

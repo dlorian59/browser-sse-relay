@@ -28,7 +28,7 @@ Configuration: run `npm ci`, then `npm run demo`. The loopback-only example crea
 
 Result: Start → Publish → Disconnect/replay keeps the counter current. Inject a checkpoint failure to see why effects can repeat. Offline + expire history stops with resync. Apply snapshot + resume first installs the counter state and then the matching cursor. Reload also obtains a snapshot if a saved cursor exists: localStorage retains a position, not the page's in-memory state.
 
-For a React notification dashboard, the separate [browser-sse-relay-react integration](https://github.com/dlorian59/browser-sse-relay-react) adds a provider, hook and accessible status component using this same protocol. Its source is prepared locally; the public repository and npm release are pending. The sibling checkout's examples/notifications/main.tsx and server.mjs demonstrate scoped notifications, StrictMode, logout and snapshot recovery. Its default checkpoint lifetime follows the provider/scope; custom persistent stores still require corresponding application state.
+For a React notification dashboard, the separate [browser-sse-relay-react integration](https://github.com/dlorian59/browser-sse-relay-react) adds a provider, hook and accessible status component using this same protocol. Its repository is public; npm publication is pending. The sibling checkout's examples/notifications/main.tsx and server.mjs demonstrate scoped notifications, StrictMode, logout and snapshot recovery. Its default checkpoint lifetime follows the provider/scope; custom persistent stores still require corresponding application state.
 
 Boundary: the relay demo is one process, not durable or distributed storage. A production snapshot needs consistent state/cursor and an authenticated account. Idempotency and durable application effects remain the application's responsibility.
 
@@ -94,33 +94,36 @@ Without an adapter, the committed cursor exists only in this client instance. Th
 <a id="retry-and-authentication"></a>
 ## Retry and authentication
 
-The following callbacks can be supplied when constructing the client above. The token endpoint and its JSON response are application contracts; this library does not implement an identity provider.
+For a protected notification stream, use DPoP-bound tokens issued by your OAuth provider. This adapter signs each GET with the same key used during token issuance; a copied token alone is insufficient when the server enforces key binding. [Complete setup, server checks and troubleshooting](../dpop.en.md) · [Integration source](../../examples/dpop-session.ts).
 
 ```ts
-let token = 'initial-application-token';
-const authentication = {
-  headers: () => ({ Authorization: `Bearer ${token}` }),
-  async refreshAuth({ signal }) {
-    const response = await fetch('/api/token/refresh', { method: 'POST', signal });
-    if (!response.ok) return false;
-    const body = await response.json();
-    if (typeof body.token !== 'string') return false;
-    token = body.token;
-    return true;
-  },
-  retry: { maxAttempts: 8, minDelayMs: 250, maxDelayMs: 10000, jitter: 0.2 },
-  connectTimeoutMs: 10000,
-  idleTimeoutMs: 45000,
-} satisfies Partial<import('@59alex/browser-sse-relay').RelayOptions>;
+import { createDpopFetch, type RelayOptions } from '@59alex/browser-sse-relay';
 
-client = new SseRelayClient({ ...options, ...authentication });
+export function authenticatedClient(
+  keyPair: CryptoKeyPair,
+  readAccessToken: (signal: AbortSignal) => string | Promise<string>,
+  refreshAccessToken: (signal: AbortSignal) => boolean | Promise<boolean>,
+) {
+  // The OAuth client must obtain and refresh tokens using this same key.
+  // OAuth-клиент должен получать и обновлять токены с тем же ключом.
+  const authentication = {
+    fetch: createDpopFetch({ keyPair, origin: location.origin, getAccessToken: readAccessToken }),
+    refreshAuth: ({ signal }) => refreshAccessToken(signal),
+    retry: { maxAttempts: 8, minDelayMs: 250, maxDelayMs: 10000, jitter: 0.2 },
+    connectTimeoutMs: 10000,
+    idleTimeoutMs: 45000,
+  } satisfies Partial<RelayOptions>;
+  return new SseRelayClient({ ...options, ...authentication });
+}
 ```
 
-Use this instead of constructing the preceding client; never start two owners of one checkpoint scope. Headers are rebuilt for every request. HTTP 401 invokes refreshAuth, when configured; false or a thrown refresh error ends authentication. HTTP 403 is terminal. Repeated 401 responses still consume the finite attempt budget. maxAttempts counts total connections for this one-shot session, including the first; it does not reset after a healthy period.
+Use the returned client instead of starting the preceding client; never start two owners of one checkpoint scope. Supply your OAuth session's key, token getter and refresh operation. Do not create a new key for each reconnect. `createDpopFetch` rebuilds Authorization/DPoP, handles one nonce challenge per call and rejects other origins and redirects. It is GET-only, so it cannot accidentally replay a streaming upload or a business command.
 
-Network errors, header/idle timeouts, HTTP 408/429 and 5xx retry with bounded delay and jitter. SSE retry and HTTP Retry-After are clamped to the configured range. Other HTTP failures and invalid protocol controls fail closed. HTTP 204 closes normally; HTTP 409/410 requires resync. Redirects are rejected. For cross-origin use, the server must allow the specific origin and request headers and expose X-Relay-Protocol; the demo shows that host configuration.
+After the adapter returns a 401, the relay invokes `refreshAuth` if configured. False or a thrown refresh error ends authentication; 403 is terminal. Repeated 401 responses consume the finite connection budget. Each connection can make at most two HTTP requests for a nonce challenge; maxAttempts counts relay connections, not those internal requests, and does not reset after a healthy period. Generic `headers` and cookie-based `credentials` remain available for applications with other auth contracts.
 
-A quiet healthy stream needs server comments/heartbeats more frequently than idleTimeoutMs. After EOF, the byte-idle timer stops while already-received events finish processing. The timers bound network waits; application handlers, token providers and checkpoint adapters remain responsible for settling their own asynchronous work.
+Network errors, header/idle timeouts, HTTP 408/429 and 5xx retry with bounded delay and jitter. SSE retry and HTTP Retry-After are clamped to the configured range. HTTP 204 closes normally; 409/410 requires resync. Other HTTP failures and invalid protocol controls fail closed. Cross-origin hosts must allow Authorization, DPoP and Last-Event-ID and expose X-Relay-Protocol, DPoP-Nonce and WWW-Authenticate to the specific allowed application origin.
+
+A quiet stream needs heartbeats more frequently than idleTimeoutMs. EOF stops the byte-idle timer while received events finish processing. The connect timer covers the DPoP fetch wrapper, but token providers must cooperate with AbortSignal and settle their promises; a timer cannot interrupt arbitrary application code. Handlers and checkpoint adapters have the same responsibility.
 
 <a id="stop-and-logout"></a>
 ## Stop and logout
@@ -172,24 +175,27 @@ The demo implements a consistent counter snapshot by reading state and MemoryEve
 <a id="reference-relay-and-handoff"></a>
 ## Reference relay and handoff
 
-This Node example starts two listeners sharing one object. The fixed bearer value is demonstration-only authentication; replace authenticate and authorize with the host application's real security boundary.
+This Node factory starts two listeners sharing one object. Supply an account resolver from your host authentication boundary. For DPoP nonce middleware and token-expiry cleanup before relay subscription, use the complete [HTTP example](https://github.com/dlorian59/browser-sse-relay/blob/main/demo/server.mjs) and [server checklist](../dpop.en.md#what-the-resource-server-must-enforce).
 
 ```ts
 import { createServer } from 'node:http';
-import { MemoryEventStore, createNodeRelay } from '@59alex/browser-sse-relay/server';
+import { MemoryEventStore, createNodeRelay, type NodeRelayOptions } from '@59alex/browser-sse-relay/server';
 
-const store = new MemoryEventStore({ maxEventsPerStream: 256, retentionMs: 300000 });
-const scope = { accountId: 'demo-account', streamId: 'counter' };
-for (const port of [8081, 8082]) {
-  const relay = createNodeRelay({
-    store,
-    authenticate: request => request.headers.authorization === 'Bearer demo-only'
-      ? scope.accountId : undefined,
-    stream: () => scope.streamId,
+export function startReferenceRelays(authenticate: NodeRelayOptions['authenticate']) {
+  const store = new MemoryEventStore({ maxEventsPerStream: 256, retentionMs: 300000 });
+  const servers = [8081, 8082].map(port => {
+    const relay = createNodeRelay({
+      store,
+      // The host supplies an account derived from verified credentials.
+      // Host передаёт аккаунт, полученный из проверенных credentials.
+      authenticate,
+      stream: () => 'counter',
+    });
+    return createServer((request, response) => { void relay(request, response); })
+      .listen(port, '127.0.0.1');
   });
-  createServer((request, response) => { void relay(request, response); }).listen(port, '127.0.0.1');
+  return { store, servers };
 }
-store.append(scope, JSON.stringify({ value: 1 }), 'counter');
 ```
 
 subscribe synchronously validates the resume position, captures a watermark, registers the subscriber and queues hello/replay/ready without yielding. New appends follow ready. This gives a deterministic handoff in one JavaScript process. The tests publish while replay is unread and verify exact observable order.

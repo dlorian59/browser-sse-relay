@@ -15,7 +15,7 @@ Recover an SSE stream from the last event your application successfully handled 
 |---|---|
 | Awaited application processing | Handler → checkpoint → committed cursor. A failed checkpoint can repeat an effect. [Example](docs/v0.1.0/guide.en.md#process-and-checkpoint) |
 | Replay and relay failover | Resume opaque account/stream-scoped cursors; verify the replay/live boundary. [Example](docs/v0.1.0/guide.en.md#reference-relay-and-handoff) |
-| Retry and authentication | Bounded attempts, jitter, retry hints, header/idle timeouts, fresh headers, optional 401 token refresh. [Example](docs/v0.1.0/guide.en.md#retry-and-authentication) |
+| Retry and authentication | Bounded attempts, jitter, timeouts, key-bound DPoP proofs, nonce retry and optional token refresh. [Example](docs/v0.1.0/guide.en.md#retry-and-authentication) |
 | Cancellation and logout | Abort transport/timers; prevent future handlers; await in-flight work before clearing the account cursor. [Example](docs/v0.1.0/guide.en.md#stop-and-logout) |
 | Explicit resynchronization | Expired history and queue overflow stop with resync; resume from a matching application snapshot and cursor. [Example](docs/v0.1.0/guide.en.md#snapshot-after-resync) |
 | Bounded resources | Frame bytes, queue count/bytes, duplicate window, retained history, scopes and subscribers all have limits. [Example](docs/v0.1.0/guide.en.md#limits-and-contracts) |
@@ -43,7 +43,9 @@ npm run test:package
 npm install /path/to/59alex-browser-sse-relay-0.1.0.tgz
 ```
 
-A practical dashboard walkthrough and the optional React integration are described in the [English guide](docs/v0.1.0/guide.en.md#practical-scenario-a-dashboard-that-survives-disconnects). The React adapter is a local source candidate; its public repository and release are pending.
+A practical dashboard walkthrough and the optional React integration are described in the [English guide](docs/v0.1.0/guide.en.md#practical-scenario-a-dashboard-that-survives-disconnects). The [React adapter](https://github.com/dlorian59/browser-sse-relay-react) is public; npm publication is pending.
+
+For authenticated streams, use [DPoP setup and the complete integration example](docs/dpop.en.md): fresh request proofs, token/key binding, nonce challenges and server verification. Generic headers remain compatible.
 
 ## Minimal client
 
@@ -90,7 +92,7 @@ Library version **0.1.0** is independent of the compiler version: **TypeScript 5
 |---|---|
 | Ожидание обработки приложением | Обработчик → checkpoint → подтверждённый курсор. Ошибка checkpoint может повторить побочный эффект. [Пример](docs/v0.1.0/guide.ru.md#process-and-checkpoint) |
 | Replay и смена relay | Восстановление по непрозрачному курсору в области аккаунта и потока; проверка границы replay/live. [Пример](docs/v0.1.0/guide.ru.md#reference-relay-and-handoff) |
-| Повторы и авторизация | Ограничение попыток, jitter, retry-подсказки, тайм-ауты заголовков и простоя, свежие headers, обновление токена после 401. [Пример](docs/v0.1.0/guide.ru.md#retry-and-authentication) |
+| Повторы и авторизация | Ограничение попыток, jitter, тайм-ауты, привязанные к ключу DPoP proofs, nonce retry и обновление токена. [Пример](docs/v0.1.0/guide.ru.md#retry-and-authentication) |
 | Отмена и logout | Остановка транспорта и таймеров, запрет новых обработчиков, ожидание текущей операции перед удалением курсора аккаунта. [Пример](docs/v0.1.0/guide.ru.md#stop-and-logout) |
 | Явная ресинхронизация | Истёкшая история и переполнение очереди требуют resync; продолжение возможно с согласованным snapshot и курсором. [Пример](docs/v0.1.0/guide.ru.md#snapshot-after-resync) |
 | Ограничение ресурсов | Лимиты байтов кадра, размера очередей, окна дублей, истории, числа потоков и подписчиков. [Пример](docs/v0.1.0/guide.ru.md#limits-and-contracts) |
@@ -118,7 +120,9 @@ npm run test:package
 npm install /path/to/59alex-browser-sse-relay-0.1.0.tgz
 ```
 
-Практический сценарий панели и отдельная React-интеграция описаны в [русском руководстве](docs/v0.1.0/guide.ru.md#практический-сценарий-панель-переживает-обрыв-соединения). React-адаптер подготовлен локально; публичный репозиторий и релиз ещё не созданы.
+Практический сценарий панели и отдельная React-интеграция описаны в [русском руководстве](docs/v0.1.0/guide.ru.md#практический-сценарий-панель-переживает-обрыв-соединения). [React-адаптер](https://github.com/dlorian59/browser-sse-relay-react) опубликован; npm-релиз пока не выполнялся.
+
+Для защищённых потоков — [настройка DPoP и полный пример интеграции](docs/dpop.ru.md): свежий proof запроса, привязка токена к ключу, nonce challenge и серверная проверка. Generic headers остаются совместимыми.
 
 ## Минимальный клиент
 

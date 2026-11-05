@@ -4,6 +4,13 @@
 
 Здесь перечислены публичные exports браузерного entry и /server. Parser, queue и функции кодирования кадров — внутренние детали, не exports пакета. Только ESM; browser entry не зависит от Node. Исходники: [клиент](https://github.com/dlorian59/browser-sse-relay/blob/main/src/client.ts), [checkpoint](https://github.com/dlorian59/browser-sse-relay/blob/main/src/checkpoint.ts), [server entry](https://github.com/dlorian59/browser-sse-relay/blob/main/src/server/index.ts).
 
+
+## Транспорт DPoP
+
+[Настройка, полный API, ошибки и требования к серверу](../dpop.ru.md) · [Типизированная интеграция](../../examples/dpop-session.ts) · [Реализация](https://github.com/dlorian59/browser-sse-relay/blob/main/src/dpop.ts).
+
+Корневой export также содержит `createDpopKeyPair`, `getDpopThumbprint`, `createDpopProof`, `createDpopFetch` и типы `DpopProofOptions` / `DpopFetchOptions`. GET-only адаптер передаётся в `RelayOptions.fetch`; generic headers остаются доступны. Каждое подключение получает новый ES256 proof с хешем токена/привязкой ключа и максимум один немедленный resource-nonce retry. Выдача/обновление OAuth-токенов и production resource verification принадлежат приложению. Ключи автоматически не сохраняются.
+
 ## Browser exports и идентичность
 
 | Export | Контракт |

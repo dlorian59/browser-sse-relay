@@ -1,6 +1,46 @@
-import { SseRelayClient, LocalStorageCheckpointStore } from '/lib/index.js';
+import { SseRelayClient, LocalStorageCheckpointStore, createDpopKeyPair, getDpopThumbprint,
+  createDpopProof, createDpopFetch } from '/lib/index.js';
 
 const config = await fetch('/api/config').then(response => response.json());
+const keyPair = await createDpopKeyPair();
+const jkt = await getDpopThumbprint(keyPair);
+let credentials;
+async function getAccessToken(signal) {
+  if (!credentials || credentials.expiresAt <= Date.now() + 1000) {
+    // Synthetic login is deliberately open in this loopback fixture; production uses OAuth.
+    // В loopback-fixture вход намеренно открыт; production-приложение использует OAuth.
+    const response = await fetch('/api/login', { method: 'POST', signal,
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accountId: config.scope.accountId, jkt }) });
+    if (!response.ok) throw new Error(`Demo login failed: ${response.status}`);
+    credentials = await response.json();
+  }
+  return credentials.accessToken;
+}
+const relayFetches = new Map(config.relayUrls.map(url => {
+  const origin = new URL(url).origin;
+  return [origin, createDpopFetch({ keyPair, origin, getAccessToken })];
+}));
+let apiNonce;
+async function apiFetch(path, init = {}) {
+  const url = new URL(path, location.origin).href;
+  const method = init.method ?? 'GET';
+  const accessToken = await getAccessToken(init.signal);
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const proof = await createDpopProof({ keyPair, url, method, accessToken, nonce: apiNonce });
+    const response = await fetch(url, { ...init, headers: { ...init.headers, Authorization: `DPoP ${accessToken}`, DPoP: proof } });
+    const nonce = response.headers.get('DPoP-Nonce');
+    // This fixture rejects nonce failures BEFORE any mutation, so this one retry is safe here.
+    // Fixture отклоняет nonce ДО изменения данных, поэтому один такой повтор здесь безопасен.
+    if (attempt === 0 && response.status === 401 && nonce
+        && response.headers.get('WWW-Authenticate')?.includes('use_dpop_nonce')) {
+      apiNonce = nonce;
+      await response.body?.cancel();
+      continue;
+    }
+    if (!response.ok) throw new Error(`Demo API failed: ${response.status}`);
+    return response;
+  }
+}
 const storage = new LocalStorageCheckpointStore(localStorage, 'browser-sse-relay:failure-demo:');
 let session, generation = 0, value = 0, handled = 0, duplicates = 0, failCheckpoint = false, lastResult;
 const seen = new Set(), lines = [], connections = [];
@@ -37,7 +77,12 @@ async function start(initialCursor) {
       log(`CONNECT relay ${replica === 0 ? 'A' : 'B'} attempt ${attempt}`);
       return config.relayUrls[replica];
     },
-    headers: () => ({ Authorization: `Bearer ${config.token}` }),
+    fetch: (input, init) => {
+      const url = typeof input === 'string' ? input : input.url ?? String(input);
+      const authenticatedFetch = relayFetches.get(new URL(url).origin);
+      if (!authenticatedFetch) throw new Error('Unconfigured relay origin');
+      return authenticatedFetch(input, init);
+    },
     retry: { maxAttempts: 8, minDelayMs: 300, maxDelayMs: 1500, jitter: 0.1 },
     onState(state) { if (current === generation) { element('state').textContent = state; log(`STATE ${state}`); render(); } },
     async onEvent(event, context) {
@@ -59,13 +104,13 @@ async function start(initialCursor) {
   });
 }
 async function publish(count = 1) {
-  const response = await fetch(`/api/publish?count=${count}`, { method: 'POST' });
+  const response = await apiFetch(`/api/publish?count=${count}`, { method: 'POST' });
   if (!response.ok) throw new Error(`Publish failed: ${response.status}`);
   return response.json();
 }
 async function snapshotAndResume() {
   await stop();
-  const snapshot = await fetch('/api/snapshot').then(response => response.json());
+  const snapshot = await apiFetch('/api/snapshot').then(response => response.json());
   // State is installed before the matching cursor is provided to a fresh session.
   // Сначала устанавливаем состояние, затем передаём его курсор новой сессии.
   value = snapshot.value; seen.clear(); log(`SNAPSHOT value=${value} cursor=${snapshot.cursor}`); render();
@@ -81,7 +126,7 @@ async function logout() {
 }
 const actions = {
   start: () => start(), publish: () => publish(),
-  drop: async () => { await fetch('/api/drop', { method: 'POST' }); await publish(3); },
+  drop: async () => { await apiFetch('/api/drop', { method: 'POST' }); await publish(3); },
   checkpoint: async () => { failCheckpoint = true; await publish(); },
   expire: expireHistory, snapshot: snapshotAndResume, logout,
 };

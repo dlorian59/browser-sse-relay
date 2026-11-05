@@ -4,3 +4,5 @@ export { MemoryCheckpointStore, LocalStorageCheckpointStore } from './checkpoint
 export type { CheckpointStore } from './checkpoint.js';
 export type { StreamScope, RelayEvent } from './protocol.js';
 export { ProtocolError, ResyncError } from './protocol.js';
+export { createDpopKeyPair, getDpopThumbprint, createDpopProof, createDpopFetch } from './dpop.js';
+export type { DpopProofOptions, DpopFetchOptions } from './dpop.js';

@@ -20,6 +20,8 @@ GET с Accept:text/event-stream и необязательным Last-Event-ID. �
 4. Live-события продолжают тот же порядок. Комментарии могут поддерживать соединение; SSE retry принимается как ограниченная подсказка задержки.
 5. relay-resync с JSON `{ reason }` после hello завершает сессию, если history/queue не позволяют продолжить.
 
+Необязательный [DPoP GET transport](dpop.ru.md) может обработать один resource-server nonce challenge до возврата ответа этой машине состояний. Протокол v1, порядок checkpoint и scope-контракт не меняются. Новый proof создаётся на каждый HTTP-запрос; выдача и проверка access token принадлежат приложению.
+
 HTTP409/410 требует resync. HTTP401 может вызвать refreshAuth один раз для запроса; успешный refresh расходует общий retry budget. HTTP403 завершает authentication failure,204 — штатное закрытие. Network/408/429/5xx и EOF допускают bounded retry. Иные статусы и неверный протокол завершаются ошибкой.
 
 ## Граница подтверждения

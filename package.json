@@ -31,7 +31,8 @@
     "LICENSE",
     "CHANGELOG.md",
     "docs",
-    "assets/lang-*.svg"
+    "assets/lang-*.svg",
+    "examples"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",

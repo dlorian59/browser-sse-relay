@@ -30,7 +30,7 @@
   <p class="note">History retains eight events. “Offline + expire history” must end in resync. “Apply snapshot + resume” installs application state and its matching cursor, then starts a new session. Checkpoint failure intentionally repeats a handler effect; the counter uses idempotent assignment.</p>
   <h2>Observable events</h2>
   <pre id="log" aria-label="Event log"></pre>
-  <p>Loopback-only reference demo. The bearer token is a fixed demo value. Both relays use the same in-memory object; restart loses history. Production authentication, durable history and application integration are outside this demo.</p>
+  <p>Loopback-only reference demo. Synthetic login issues a short-lived, key-bound DPoP token. Proof signatures, nonce and replay are checked; login does not verify identity and is not OAuth. SSE closes at token expiry, without instant revocation. HTTP is used only on loopback; production requires HTTPS. Both relays use the same in-memory object; restart loses history. Production authentication, durable history and application integration are outside this demo.</p>
   <script type="module" src="/demo.js"></script>
 </body>
 </html>
